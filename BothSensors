@@ -1,0 +1,152 @@
+#include <ESP8266WiFi.h>
+#include <WiFiUdp.h>
+#include <Wire.h>
+#include <Adafruit_ADS1015.h>
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+const char* ssid = "NSAISWATCHINGYOU-2.4";
+const char* password = "Boskow7676";
+WiFiUDP Udp;
+unsigned int localUdpPort = 4210;  // local port to listen on
+char incomingPacket[255];  // buffer for incoming packets
+char  replyPacket[] = "Hi there! Got the message :-)";  // a reply string to send back
+IPAddress ip(10, 0, 0, 189);
+int16_t adc0_1, adc1_1,adc0_2, adc1_2 ;
+int DeltaSensor1 = 0;  
+int DeltaSensor2 = 0;  
+int LaserTresh =200;
+int I=0;
+//// Iterable for count up
+int C=0;
+///////Sensor 1 = true for Count up
+int N=0;
+//// Iterable for count down
+int D=0;
+///////Sensor 2 = true for Count up
+Adafruit_ADS1115 ads;  /* Use this for the 16-bit version */
+//Adafruit_ADS1015 ads;     /* Use thi for the 12-bit version */
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+void setup()
+{
+  Serial.begin(115200);
+  //Fpr ADC
+  Serial.println("Hello!");
+  Serial.println("Getting single-ended readings from AIN0..3");
+  Serial.println("ADC Range: +/- 6.144V (1 bit = 3mV/ADS1015, 0.1875mV/ADS1115)");
+  // The ADC input range (or gain) can be changed via the following
+  // functions, but be careful never to exceed VDD +0.3V max, or to
+  // exceed the upper and lower limits if you adjust the input range!
+  // Setting these values incorrectly may destroy your ADC!
+  //                                                                ADS1015  ADS1115
+  //                                                                -------  -------
+  // ads.setGain(GAIN_TWOTHIRDS);  // 2/3x gain +/- 6.144V  1 bit = 3mV      0.1875mV (default)
+  // ads.setGain(GAIN_ONE);        // 1x gain   +/- 4.096V  1 bit = 2mV      0.125mV
+  //ads.setGain(GAIN_TWO);        // 2x gain   +/- 2.048V  1 bit = 1mV      0.0625mV
+  // ads.setGain(GAIN_FOUR);       // 4x gain   +/- 1.024V  1 bit = 0.5mV    0.03125mV
+  // ads.setGain(GAIN_EIGHT);      // 8x gain   +/- 0.512V  1 bit = 0.25mV   0.015625mV
+  // ads.setGain(GAIN_SIXTEEN);    // 16x gain  +/- 0.256V  1 bit = 0.125mV  0.0078125mV
+  ads.begin();
+  // put your setup code here, to run once:
+  Serial.println();
+  Serial.printf("Connecting to %s ", ssid);
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED)
+  {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println(" connected");
+
+  Udp.begin(localUdpPort);
+  Serial.printf("Now listening at IP %s, UDP port %d\n", WiFi.localIP().toString().c_str(), localUdpPort);
+}
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+void loop()
+
+{
+
+    if (I>100 or DeltaSensor2 > LaserTresh)
+    {
+      C=0;
+      I=0;
+    }
+
+    if (I>100 or DeltaSensor1 > LaserTresh)
+    {
+      D=0;
+      N=0;
+    }
+
+  adc0_1 = ads.readADC_SingleEnded(0);
+  adc1_1 = ads.readADC_SingleEnded(1);
+  delay(100);
+  adc0_2= ads.readADC_SingleEnded(0);
+  adc1_2 = ads.readADC_SingleEnded(1);
+  DeltaSensor1=   adc0_1 -   adc0_2;
+  DeltaSensor2=   adc1_1 -   adc1_2;
+  
+
+    
+    if (C=1 & DeltaSensor2 > LaserTresh)
+    {
+      Serial.println("+1");
+      Udp.beginPacket(ip, 4210);
+      Udp.write("1");
+      Udp.endPacket();
+      int packetSize = Udp.parsePacket();
+        if (packetSize)
+        {
+          // receive incoming UDP packets
+          Serial.printf("Received %d bytes from %s, port %d\n", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
+          int len = Udp.read(incomingPacket, 255);
+            if (len > 0)
+            {
+              incomingPacket[len] = 0;
+            }
+          Serial.printf("UDP packet contents: %s\n", incomingPacket);
+          }
+      }
+      
+    if (DeltaSensor1 > LaserTresh)
+    {
+      C=1;
+    }
+    if (C=1)
+    {
+      I=1+I;
+      Serial.println(I);
+    }
+    if (D=1 & DeltaSensor1 > LaserTresh)
+  {
+    Serial.println("-1");
+    Udp.beginPacket(ip, 4210);
+    Udp.write("1");
+    Udp.endPacket();
+    int packetSize = Udp.parsePacket();
+      if (packetSize)
+      {
+        // receive incoming UDP packets
+        Serial.printf("Received %d bytes from %s, port %d\n", packetSize, Udp.remoteIP().toString().c_str(), Udp.remotePort());
+        int len = Udp.read(incomingPacket, 255);
+          if (len > 0)
+          {
+            incomingPacket[len] = 0;
+          }
+        Serial.printf("UDP packet contents: %s\n", incomingPacket);
+        }
+    }
+    
+    if (DeltaSensor2 > LaserTresh)
+    {
+      D=1;
+    }
+      if (D=1)
+    {
+      N=1+N;
+      Serial.println(N);
+    }
+
+
+  }
