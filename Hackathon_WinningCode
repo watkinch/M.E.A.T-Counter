@@ -4,8 +4,8 @@
 #include <Adafruit_ADS1015.h>
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////
-const char* ssid = "NSAISWATCHINGYOU-2.4";
-const char* password = "Boskow7676";
+const char* ssid = "Your SSID";
+const char* password = "Your Password";
 WiFiUDP Udp;
 unsigned int localUdpPort = 4210;  // local port to listen on
 char incomingPacket[255];  // buffer for incoming packets
